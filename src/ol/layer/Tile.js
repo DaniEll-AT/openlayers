@@ -4,7 +4,6 @@
 import BaseTileLayer from './BaseTile.js';
 import CanvasTileLayerRenderer from '../renderer/canvas/TileLayer.js';
 
-
 /**
  * @classdesc
  * For layer sources that provide pre-rendered, tiled images in grids that are
@@ -13,12 +12,13 @@ import CanvasTileLayerRenderer from '../renderer/canvas/TileLayer.js';
  * property on the layer object; for example, setting `title: 'My Title'` in the
  * options means that `title` is observable, and has get/set accessors.
  *
+ * @template {import("../source/Tile.js").default} TileSourceType
+ * @extends {BaseTileLayer<TileSourceType>}
  * @api
  */
 class TileLayer extends BaseTileLayer {
-
   /**
-   * @param {import("./BaseTile.js").Options=} opt_options Tile layer options.
+   * @param {import("./BaseTile.js").Options<TileSourceType>} [opt_options] Tile layer options.
    */
   constructor(opt_options) {
     super(opt_options);
@@ -32,7 +32,6 @@ class TileLayer extends BaseTileLayer {
   createRenderer() {
     return new CanvasTileLayerRenderer(this);
   }
-
 }
 
 export default TileLayer;

@@ -1,25 +1,41 @@
+import {WORKER_OFFSCREEN_CANVAS} from './has.js';
+
 /**
  * @module ol/dom
  */
 
-
+//FIXME Move this function to the canvas module
 /**
  * Create an html canvas element and returns its 2d context.
- * @param {number=} opt_width Canvas width.
- * @param {number=} opt_height Canvas height.
+ * @param {number} [opt_width] Canvas width.
+ * @param {number} [opt_height] Canvas height.
+ * @param {Array<HTMLCanvasElement>} [opt_canvasPool] Canvas pool to take existing canvas from.
+ * @param {CanvasRenderingContext2DSettings} [opt_Context2DSettings] CanvasRenderingContext2DSettings
  * @return {CanvasRenderingContext2D} The context.
  */
-export function createCanvasContext2D(opt_width, opt_height) {
-  const canvas = document.createElement('canvas');
+export function createCanvasContext2D(
+  opt_width,
+  opt_height,
+  opt_canvasPool,
+  opt_Context2DSettings
+) {
+  const canvas =
+    opt_canvasPool && opt_canvasPool.length
+      ? opt_canvasPool.shift()
+      : WORKER_OFFSCREEN_CANVAS
+      ? new OffscreenCanvas(opt_width || 300, opt_height || 300)
+      : document.createElement('canvas');
   if (opt_width) {
     canvas.width = opt_width;
   }
   if (opt_height) {
     canvas.height = opt_height;
   }
-  return canvas.getContext('2d');
+  //FIXME Allow OffscreenCanvasRenderingContext2D as return type
+  return /** @type {CanvasRenderingContext2D} */ (
+    canvas.getContext('2d', opt_Context2DSettings)
+  );
 }
-
 
 /**
  * Get the current computed width for the given element including margin,
@@ -35,7 +51,6 @@ export function outerWidth(element) {
 
   return width;
 }
-
 
 /**
  * Get the current computed height for the given element including margin,
@@ -65,7 +80,7 @@ export function replaceNode(newNode, oldNode) {
 
 /**
  * @param {Node} node The node to remove.
- * @returns {Node} The node that was removed or null.
+ * @return {Node} The node that was removed or null.
  */
 export function removeNode(node) {
   return node && node.parentNode ? node.parentNode.removeChild(node) : null;

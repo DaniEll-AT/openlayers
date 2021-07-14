@@ -3,8 +3,8 @@
  */
 import Layer from './Layer.js';
 
-
 /**
+ * @template {import("../source/Image.js").default} ImageSourceType
  * @typedef {Object} Options
  * @property {string} [className='ol-layer'] A CSS class name to set to the layer element.
  * @property {number} [opacity=1] Opacity (0, 1).
@@ -19,13 +19,17 @@ import Layer from './Layer.js';
  * visible.
  * @property {number} [maxResolution] The maximum resolution (exclusive) below which this layer will
  * be visible.
+ * @property {number} [minZoom] The minimum view zoom level (exclusive) above which this layer will be
+ * visible.
+ * @property {number} [maxZoom] The maximum view zoom level (inclusive) at which this layer will
+ * be visible.
  * @property {import("../PluggableMap.js").default} [map] Sets the layer as overlay on a map. The map will not manage
  * this layer in its layers collection, and the layer will be rendered on top. This is useful for
  * temporary layers. The standard way to add a layer to a map and have it managed by the map is to
- * use {@link module:ol/Map#addLayer}.
- * @property {import("../source/Image.js").default} [source] Source for this layer.
+ * use {@link import("../PluggableMap.js").default#addLayer map.addLayer()}.
+ * @property {ImageSourceType} [source] Source for this layer.
+ * @property {Object<string, *>} [properties] Arbitrary observable properties. Can be accessed with `#get()` and `#set()`.
  */
-
 
 /**
  * @classdesc
@@ -35,19 +39,18 @@ import Layer from './Layer.js';
  * property on the layer object; for example, setting `title: 'My Title'` in the
  * options means that `title` is observable, and has get/set accessors.
  *
- * @extends {Layer<import("../source/Image.js").default>}
+ * @template {import("../source/Image.js").default} ImageSourceType
+ * @extends {Layer<ImageSourceType>}
  * @api
  */
 class BaseImageLayer extends Layer {
-
   /**
-   * @param {Options=} opt_options Layer options.
+   * @param {Options<ImageSourceType>} [opt_options] Layer options.
    */
   constructor(opt_options) {
     const options = opt_options ? opt_options : {};
     super(options);
   }
-
 }
 
 export default BaseImageLayer;

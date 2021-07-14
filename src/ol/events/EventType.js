@@ -34,5 +34,6 @@ export default {
   KEYPRESS: 'keypress',
   LOAD: 'load',
   RESIZE: 'resize',
-  WHEEL: 'wheel'
+  TOUCHMOVE: 'touchmove',
+  WHEEL: 'wheel',
 };

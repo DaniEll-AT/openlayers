@@ -1,5 +1,78 @@
 ## Upgrade notes
 
+### Next version
+
+### v6.6.0
+
+#### Included TypeScript declarations
+
+The [ol package](https://npmjs.com/package/ol) now includes TypeScript declarations as `*.d.ts` files.
+
+If desired, e.g. when you don't want to adjust your code after upgrading from a previous version where you used `@types/ol`, you can opt out of the included types and use third-party types by specifying aliases in the `compilerOptions` section of `tsconfig.json`, e.g.
+```json
+    "baseUrl": "./",
+    "paths": {
+      "ol": ["node_modules/@types/ol"],
+      "ol/*": ["node_modules/@types/ol/*"]
+    },
+```
+#### Deprecation of `undefinedHTML` option for the MousePosition control
+
+The `undefinedHTML` option for the MousePosition control has been deprecated and will be removed in a future release.  Use the new `placeholder` option instead.
+
+#### New `placeholder` option for the MousePosition control
+
+When the mouse position is not available, the control renders a non-breaking space.  To render something else instead,
+set the `placeholder` option.  If you want to retain the last position when the mouse leaves the viewport, set
+`placeholder: false`.  This will be the default behavior in a future release.
+
+The `placeholder` option has no effect if the deprecated `undefinedHTML` option is also used.  You should use the `placeholder` option instead of `undefinedHTML`.
+
+#### Deprecation of `image` render mode for vector tile layers
+
+`renderMode: 'image'` for vector tile layers has been deprecated. Applications continue to work, but a warning will be issued to the console. To get rid of the warning, simply remove the `renderMode` option.
+
+### v6.5.0
+
+#### Units of the `hitTolerance` option fixed
+
+Previously, the `hitTolerance` option of the map's `getFeaturesAtPixel()`, `forEachFeatureAtPixel()` and `hasFeatureAtPixel()` methods behaved differently depending on the `devicePixelRatio` (or the `pixelRatio` of the map), because the original value was internally multiplied by the device pixel ratio twice instead of just once. Now this is fixed. **Note**: The `hitTolerance`'s units are css pixels. The documentation was updated to reflect this.
+
+If your application adjusts for that with code like
+```js
+{ hitTolerance: 10 / devicePixelRatio, }
+```
+you'll have to change that code to
+```js
+{ hitTolerance: 10, }
+```
+
+### v6.4.0
+
+#### Pointer events polyfill removed
+
+Now that all major browsers support Pointer events natively, we removed the [elm-pep](https://npmjs.com/package/elm-pep) dependency. If you are targeting older browsers that do not support Pointer events, you now need to include a pointer events polyfill ([elm-pep](https://npmjs.com/package/elm-pep) or [pepjs](https://www.npmjs.com/package/@openlayers/pepjs)) in your application.
+
+### v6.3.2
+
+#### Backwards incompatible changes
+
+##### Geolocation no longer stop tracking after an error
+
+Previously, when the Geolocation class encounter an error the tracking was stopped. It now continues to track.
+To get the previous behavior, use the following code:
+```js
+geolocation.on('error', function (error) {
+  geolocation.setTracking(false);
+});
+```
+
+### v6.3.0
+
+#### Vector source loading when extent crosses +/-180
+
+Previously, when an extent crossed the date line, vector source loaders were called with an extent with 540 degrees of longitude. Now, two loader calls with the visible extent on both sides of the projection extent are issued. This should not require any application code changes, but may affect custom loaders.
+
 ### v6.0.0
 
 #### Backwards incompatible changes
@@ -77,7 +150,7 @@ Generally, the responsibility of applying center/rotation/resolutions constraint
 
 ##### The view `extent` option now applies to the whole viewport
 
-Previously, this options only constrained the view *center*. This behaviour can still be obtained by specifying `constrainCenterOnly` in the view options.
+Previously, this options only constrained the view *center*. This behaviour can still be obtained by specifying `constrainOnlyCenter` in the view options.
 
 As a side effect, the view `rotate` method is gone and has been replaced with `adjustRotation` which takes a delta as input.
 
@@ -1422,7 +1495,7 @@ now specify an `extent` instead of `widths`. These settings are used to restrict
   });
   ```
 
-  See https://openlayers.org/en/master/examples/vector-layer.html for a real example.
+  See https://openlayers.org/en/latest/examples/vector-layer.html for a real example.
 
   Note that you no longer need to set a `projection` on the source!
 
@@ -1444,7 +1517,7 @@ now specify an `extent` instead of `widths`. These settings are used to restrict
 
   The above code uses jQuery to send an Ajax request, but you can obviously use any Ajax library.
 
-  See https://openlayers.org/en/master/examples/igc.html for a real example.
+  See https://openlayers.org/en/latest/examples/igc.html for a real example.
 
 * Note about KML
 
@@ -1502,9 +1575,9 @@ now specify an `extent` instead of `widths`. These settings are used to restrict
   });
   ```
 
-  See https://openlayers.org/en/master/examples/vector-osm.html for a real example.
+  See https://openlayers.org/en/latest/examples/vector-osm.html for a real example.
 
-* The experimental `ol.loadingstrategy.createTile` function has been renamed to `ol.loadingstrategy.tile`. The signature of the function hasn't changed. See https://openlayers.org/en/master/examples/vector-osm.html for an example.
+* The experimental `ol.loadingstrategy.createTile` function has been renamed to `ol.loadingstrategy.tile`. The signature of the function hasn't changed. See https://openlayers.org/en/latest/examples/vector-osm.html for an example.
 
 #### Change to `ol.style.Icon`
 

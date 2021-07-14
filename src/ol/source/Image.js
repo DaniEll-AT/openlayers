@@ -1,22 +1,21 @@
 /**
  * @module ol/source/Image
  */
-import {abstract} from '../util.js';
-import {ENABLE_RASTER_REPROJECTION} from '../reproj/common.js';
-import ImageState from '../ImageState.js';
-import {linearFindNearest} from '../array.js';
 import Event from '../events/Event.js';
-import {equals} from '../extent.js';
-import {equivalent} from '../proj.js';
+import ImageState from '../ImageState.js';
 import ReprojImage from '../reproj/Image.js';
 import Source from './Source.js';
-
+import {ENABLE_RASTER_REPROJECTION} from '../reproj/common.js';
+import {IMAGE_SMOOTHING_DISABLED} from './common.js';
+import {abstract} from '../util.js';
+import {equals} from '../extent.js';
+import {equivalent} from '../proj.js';
+import {linearFindNearest} from '../array.js';
 
 /**
  * @enum {string}
  */
-const ImageSourceEventType = {
-
+export const ImageSourceEventType = {
   /**
    * Triggered when an image starts loading.
    * @event module:ol/source/Image.ImageSourceEvent#imageloadstart
@@ -36,10 +35,12 @@ const ImageSourceEventType = {
    * @event module:ol/source/Image.ImageSourceEvent#imageloaderror
    * @api
    */
-  IMAGELOADERROR: 'imageloaderror'
-
+  IMAGELOADERROR: 'imageloaderror',
 };
 
+/**
+ * @typedef {'imageloadend'|'imageloaderror'|'imageloadstart'} ImageSourceEventTypes
+ */
 
 /**
  * @classdesc
@@ -52,7 +53,6 @@ export class ImageSourceEvent extends Event {
    * @param {import("../Image.js").default} image The image.
    */
   constructor(type, image) {
-
     super(type);
 
     /**
@@ -61,20 +61,26 @@ export class ImageSourceEvent extends Event {
      * @api
      */
     this.image = image;
-
   }
-
 }
 
+/***
+ * @template Return
+ * @typedef {import("../Observable").OnSignature<import("../Observable").EventTypes, import("../events/Event.js").default, Return> &
+ *   import("../Observable").OnSignature<import("../ObjectEventType").Types, import("../Object").ObjectEvent, Return> &
+ *   import("../Observable").OnSignature<ImageSourceEventTypes, ImageSourceEvent, Return> &
+ *   import("../Observable").CombinedOnSignature<import("../Observable").EventTypes|import("../ObjectEventType").Types
+ *     |ImageSourceEventTypes, Return>} ImageSourceOnSignature
+ */
 
 /**
  * @typedef {Object} Options
- * @property {import("./Source.js").AttributionLike} [attributions]
- * @property {import("../proj.js").ProjectionLike} [projection]
- * @property {Array<number>} [resolutions]
- * @property {import("./State.js").default} [state]
+ * @property {import("./Source.js").AttributionLike} [attributions] Attributions.
+ * @property {boolean} [imageSmoothing=true] Enable image smoothing.
+ * @property {import("../proj.js").ProjectionLike} [projection] Projection.
+ * @property {Array<number>} [resolutions] Resolutions.
+ * @property {import("./State.js").default} [state] State.
  */
-
 
 /**
  * @classdesc
@@ -93,16 +99,30 @@ class ImageSource extends Source {
     super({
       attributions: options.attributions,
       projection: options.projection,
-      state: options.state
+      state: options.state,
     });
+
+    /***
+     * @type {ImageSourceOnSignature<import("../Observable.js").OnReturn>}
+     */
+    this.on;
+
+    /***
+     * @type {ImageSourceOnSignature<import("../Observable.js").OnReturn>}
+     */
+    this.once;
+
+    /***
+     * @type {ImageSourceOnSignature<void>}
+     */
+    this.un;
 
     /**
      * @private
      * @type {Array<number>}
      */
-    this.resolutions_ = options.resolutions !== undefined ?
-      options.resolutions : null;
-
+    this.resolutions_ =
+      options.resolutions !== undefined ? options.resolutions : null;
 
     /**
      * @private
@@ -110,20 +130,32 @@ class ImageSource extends Source {
      */
     this.reprojectedImage_ = null;
 
-
     /**
      * @private
      * @type {number}
      */
     this.reprojectedRevision_ = 0;
+
+    /**
+     * @private
+     * @type {object|undefined}
+     */
+    this.contextOptions_ =
+      options.imageSmoothing === false ? IMAGE_SMOOTHING_DISABLED : undefined;
   }
 
   /**
    * @return {Array<number>} Resolutions.
-   * @override
    */
   getResolutions() {
     return this.resolutions_;
+  }
+
+  /**
+   * @return {Object|undefined} Context options.
+   */
+  getContextOptions() {
+    return this.contextOptions_;
   }
 
   /**
@@ -148,21 +180,24 @@ class ImageSource extends Source {
    */
   getImage(extent, resolution, pixelRatio, projection) {
     const sourceProjection = this.getProjection();
-    if (!ENABLE_RASTER_REPROJECTION ||
-        !sourceProjection ||
-        !projection ||
-        equivalent(sourceProjection, projection)) {
+    if (
+      !ENABLE_RASTER_REPROJECTION ||
+      !sourceProjection ||
+      !projection ||
+      equivalent(sourceProjection, projection)
+    ) {
       if (sourceProjection) {
         projection = sourceProjection;
       }
       return this.getImageInternal(extent, resolution, pixelRatio, projection);
     } else {
       if (this.reprojectedImage_) {
-        if (this.reprojectedRevision_ == this.getRevision() &&
-            equivalent(
-              this.reprojectedImage_.getProjection(), projection) &&
-            this.reprojectedImage_.getResolution() == resolution &&
-            equals(this.reprojectedImage_.getExtent(), extent)) {
+        if (
+          this.reprojectedRevision_ == this.getRevision() &&
+          equivalent(this.reprojectedImage_.getProjection(), projection) &&
+          this.reprojectedImage_.getResolution() == resolution &&
+          equals(this.reprojectedImage_.getExtent(), extent)
+        ) {
           return this.reprojectedImage_;
         }
         this.reprojectedImage_.dispose();
@@ -170,11 +205,21 @@ class ImageSource extends Source {
       }
 
       this.reprojectedImage_ = new ReprojImage(
-        sourceProjection, projection, extent, resolution, pixelRatio,
-        function(extent, resolution, pixelRatio) {
-          return this.getImageInternal(extent, resolution,
-            pixelRatio, sourceProjection);
-        }.bind(this));
+        sourceProjection,
+        projection,
+        extent,
+        resolution,
+        pixelRatio,
+        function (extent, resolution, pixelRatio) {
+          return this.getImageInternal(
+            extent,
+            resolution,
+            pixelRatio,
+            sourceProjection
+          );
+        }.bind(this),
+        this.contextOptions_
+      );
       this.reprojectedRevision_ = this.getRevision();
 
       return this.reprojectedImage_;
@@ -205,27 +250,26 @@ class ImageSource extends Source {
       case ImageState.LOADING:
         this.loading = true;
         this.dispatchEvent(
-          new ImageSourceEvent(ImageSourceEventType.IMAGELOADSTART,
-            image));
+          new ImageSourceEvent(ImageSourceEventType.IMAGELOADSTART, image)
+        );
         break;
       case ImageState.LOADED:
         this.loading = false;
         this.dispatchEvent(
-          new ImageSourceEvent(ImageSourceEventType.IMAGELOADEND,
-            image));
+          new ImageSourceEvent(ImageSourceEventType.IMAGELOADEND, image)
+        );
         break;
       case ImageState.ERROR:
         this.loading = false;
         this.dispatchEvent(
-          new ImageSourceEvent(ImageSourceEventType.IMAGELOADERROR,
-            image));
+          new ImageSourceEvent(ImageSourceEventType.IMAGELOADERROR, image)
+        );
         break;
       default:
-        // pass
+      // pass
     }
   }
 }
-
 
 /**
  * Default image load function for image sources that use import("../Image.js").Image image

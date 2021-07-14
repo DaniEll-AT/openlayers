@@ -1,8 +1,8 @@
 /**
  * @module ol/webgl/Buffer
  */
-import {STATIC_DRAW, STREAM_DRAW, DYNAMIC_DRAW} from '../webgl.js';
 import {ARRAY_BUFFER, ELEMENT_ARRAY_BUFFER} from '../webgl.js';
+import {DYNAMIC_DRAW, STATIC_DRAW, STREAM_DRAW} from '../webgl.js';
 import {assert} from '../asserts.js';
 
 /**
@@ -13,7 +13,7 @@ import {assert} from '../asserts.js';
 export const BufferUsage = {
   STATIC_DRAW: STATIC_DRAW,
   STREAM_DRAW: STREAM_DRAW,
-  DYNAMIC_DRAW: DYNAMIC_DRAW
+  DYNAMIC_DRAW: DYNAMIC_DRAW,
 };
 
 /**
@@ -33,14 +33,12 @@ export const BufferUsage = {
  * @api
  */
 class WebGLArrayBuffer {
-
   /**
    * @param {number} type Buffer type, either ARRAY_BUFFER or ELEMENT_ARRAY_BUFFER.
-   * @param {number=} opt_usage Intended usage, either `STATIC_DRAW`, `STREAM_DRAW` or `DYNAMIC_DRAW`.
+   * @param {number} [opt_usage] Intended usage, either `STATIC_DRAW`, `STREAM_DRAW` or `DYNAMIC_DRAW`.
    * Default is `DYNAMIC_DRAW`.
    */
   constructor(type, opt_usage) {
-
     /**
      * @private
      * @type {Float32Array|Uint32Array}
@@ -75,7 +73,7 @@ class WebGLArrayBuffer {
    * @param {Array<number>} array Numerical array
    */
   fromArray(array) {
-    this.array = (getArrayClassForType(this.type)).from(array);
+    this.array = getArrayClassForType(this.type).from(array);
   }
 
   /**
@@ -121,7 +119,7 @@ class WebGLArrayBuffer {
 /**
  * Returns a typed array constructor based on the given buffer type
  * @param {number} type Buffer type, either ARRAY_BUFFER or ELEMENT_ARRAY_BUFFER.
- * @returns {Float32ArrayConstructor|Uint32ArrayConstructor} The typed array class to use for this buffer.
+ * @return {Float32ArrayConstructor|Uint32ArrayConstructor} The typed array class to use for this buffer.
  */
 export function getArrayClassForType(type) {
   switch (type) {

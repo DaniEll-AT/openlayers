@@ -1,39 +1,35 @@
 /**
  * @module ol/VectorRenderTile
  */
-import {getUid} from './util.js';
 import Tile from './Tile.js';
 import {createCanvasContext2D} from './dom.js';
-import {unlistenByKey} from './events.js';
-
+import {getUid} from './util.js';
 
 /**
  * @typedef {Object} ReplayState
- * @property {boolean} dirty
- * @property {null|import("./render.js").OrderFunction} renderedRenderOrder
- * @property {number} renderedTileRevision
- * @property {number} renderedResolution
- * @property {number} renderedRevision
- * @property {number} renderedZ
- * @property {number} renderedTileResolution
- * @property {number} renderedTileZ
+ * @property {boolean} dirty Dirty.
+ * @property {null|import("./render.js").OrderFunction} renderedRenderOrder RenderedRenderOrder.
+ * @property {number} renderedTileRevision RenderedTileRevision.
+ * @property {number} renderedResolution RenderedResolution.
+ * @property {number} renderedRevision RenderedRevision.
+ * @property {number} renderedTileResolution RenderedTileResolution.
+ * @property {number} renderedTileZ RenderedTileZ.
  */
 
+/**
+ * @type {Array<HTMLCanvasElement>}
+ */
+const canvasPool = [];
 
 class VectorRenderTile extends Tile {
-
   /**
    * @param {import("./tilecoord.js").TileCoord} tileCoord Tile coordinate.
    * @param {import("./TileState.js").default} state State.
    * @param {import("./tilecoord.js").TileCoord} urlTileCoord Wrapped tile coordinate for source urls.
-   * @param {import("./tilegrid/TileGrid.js").default} sourceTileGrid Tile grid of the source.
    * @param {function(VectorRenderTile):Array<import("./VectorTile").default>} getSourceTiles Function
-   * to get an source tiles for this tile.
-   * @param {function(VectorRenderTile):void} removeSourceTiles Function to remove this tile from its
-   * source tiles's consumer count.
+   * to get source tiles for this tile.
    */
-  constructor(tileCoord, state, urlTileCoord, sourceTileGrid, getSourceTiles, removeSourceTiles) {
-
+  constructor(tileCoord, state, urlTileCoord, getSourceTiles) {
     super(tileCoord, state, {transition: 0});
 
     /**
@@ -49,27 +45,37 @@ class VectorRenderTile extends Tile {
     this.executorGroups = {};
 
     /**
+     * Executor groups for decluttering, by layer uid. Entries are read/written by the renderer.
+     * @type {Object<string, Array<import("./render/canvas/ExecutorGroup.js").default>>}
+     */
+    this.declutterExecutorGroups = {};
+
+    /**
      * Number of loading source tiles. Read/written by the source.
      * @type {number}
      */
     this.loadingSourceTiles = 0;
 
     /**
-     * Tile keys of error source tiles. Read/written by the source.
-     * @type {Object<string, boolean>}
+     * @type {Object<number, ImageData>}
      */
-    this.errorSourceTileKeys = {};
-
-    /**
-     * @type {ImageData}
-     */
-    this.hitDetectionImageData = null;
+    this.hitDetectionImageData = {};
 
     /**
      * @private
      * @type {!Object<string, ReplayState>}
      */
     this.replayState_ = {};
+
+    /**
+     * @type {Array<import("./VectorTile.js").default>}
+     */
+    this.sourceTiles = [];
+
+    /**
+     * @type {Object<string, boolean>}
+     */
+    this.errorTileKeys = {};
 
     /**
      * @type {number}
@@ -79,61 +85,12 @@ class VectorRenderTile extends Tile {
     /**
      * @type {!function():Array<import("./VectorTile.js").default>}
      */
-    this.getSourceTiles = getSourceTiles.bind(this, this);
-
-    /**
-     * @type {!function(import("./VectorRenderTile.js").default):void}
-     */
-    this.removeSourceTiles_ = removeSourceTiles;
-
-    /**
-     * @private
-     * @type {import("./tilegrid/TileGrid.js").default}
-     */
-    this.sourceTileGrid_ = sourceTileGrid;
-
-    /**
-     * @type {Array<import("./events.js").EventsKey>}
-     */
-    this.sourceTileListenerKeys = [];
-
-    /**
-     * z of the source tiles of the last getSourceTiles call.
-     * @type {number}
-     */
-    this.sourceZ = -1;
-
-    /**
-     * True when all tiles for this tile's nominal resolution are available.
-     * @type {boolean}
-     */
-    this.hifi = false;
+    this.getSourceTiles = getSourceTiles.bind(undefined, this);
 
     /**
      * @type {import("./tilecoord.js").TileCoord}
      */
     this.wrappedTileCoord = urlTileCoord;
-  }
-
-  /**
-   * @inheritDoc
-   */
-  disposeInternal() {
-    this.sourceTileListenerKeys.forEach(unlistenByKey);
-    this.sourceTileListenerKeys.length = 0;
-    this.removeSourceTiles_(this);
-    for (const key in this.context_) {
-      const canvas = this.context_[key].canvas;
-      canvas.width = 0;
-      canvas.height = 0;
-    }
-    for (const key in this.executorGroups) {
-      const executorGroups = this.executorGroups[key];
-      for (let i = 0, ii = executorGroups.length; i < ii; ++i) {
-        executorGroups[i].disposeInternal();
-      }
-    }
-    super.disposeInternal();
   }
 
   /**
@@ -143,7 +100,7 @@ class VectorRenderTile extends Tile {
   getContext(layer) {
     const key = getUid(layer);
     if (!(key in this.context_)) {
-      this.context_[key] = createCanvasContext2D();
+      this.context_[key] = createCanvasContext2D(1, 1, canvasPool);
     }
     return this.context_[key];
   }
@@ -179,20 +136,29 @@ class VectorRenderTile extends Tile {
         renderedRevision: -1,
         renderedTileResolution: NaN,
         renderedTileRevision: -1,
-        renderedZ: -1,
-        renderedTileZ: -1
+        renderedTileZ: -1,
       };
     }
     return this.replayState_[key];
   }
 
   /**
-   * @inheritDoc
+   * Load the tile.
    */
   load() {
     this.getSourceTiles();
   }
-}
 
+  /**
+   * Remove from the cache due to expiry
+   */
+  release() {
+    for (const key in this.context_) {
+      canvasPool.push(this.context_[key].canvas);
+      delete this.context_[key];
+    }
+    super.release();
+  }
+}
 
 export default VectorRenderTile;

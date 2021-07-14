@@ -2,19 +2,17 @@
  * @module ol/Collection
  */
 import AssertionError from './AssertionError.js';
-import CollectionEventType from './CollectionEventType.js';
 import BaseObject from './Object.js';
+import CollectionEventType from './CollectionEventType.js';
 import Event from './events/Event.js';
-
 
 /**
  * @enum {string}
  * @private
  */
 const Property = {
-  LENGTH: 'length'
+  LENGTH: 'length',
 };
-
 
 /**
  * @classdesc
@@ -22,11 +20,10 @@ const Property = {
  * type.
  */
 export class CollectionEvent extends Event {
-
   /**
-   * @param {CollectionEventType} type Type.
-   * @param {*=} opt_element Element.
-   * @param {number} opt_index The index of the added or removed element.
+   * @param {import("./CollectionEventType.js").default} type Type.
+   * @param {*} [opt_element] Element.
+   * @param {number} [opt_index] The index of the added or removed element.
    */
   constructor(type, opt_element, opt_index) {
     super(type);
@@ -45,9 +42,16 @@ export class CollectionEvent extends Event {
      */
     this.index = opt_index;
   }
-
 }
 
+/***
+ * @template Return
+ * @typedef {import("./Observable").OnSignature<import("./Observable").EventTypes, import("./events/Event.js").default, Return> &
+ *   import("./Observable").OnSignature<import("./ObjectEventType").Types|'change:length', import("./Object").ObjectEvent, Return> &
+ *   import("./Observable").OnSignature<'add'|'remove', CollectionEvent, Return> &
+ *   import("./Observable").CombinedOnSignature<import("./Observable").EventTypes|import("./ObjectEventType").Types|
+ *     'change:length'|'add'|'remove',Return>} CollectionOnSignature
+ */
 
 /**
  * @typedef {Object} Options
@@ -69,14 +73,27 @@ export class CollectionEvent extends Event {
  * @api
  */
 class Collection extends BaseObject {
-
   /**
-   * @param {Array<T>=} opt_array Array.
-   * @param {Options=} opt_options Collection options.
+   * @param {Array<T>} [opt_array] Array.
+   * @param {Options} [opt_options] Collection options.
    */
   constructor(opt_array, opt_options) {
-
     super();
+
+    /***
+     * @type {CollectionOnSignature<import("./Observable.js").OnReturn>}
+     */
+    this.on;
+
+    /***
+     * @type {CollectionOnSignature<import("./Observable.js").OnReturn>}
+     */
+    this.once;
+
+    /***
+     * @type {CollectionOnSignature<void>}
+     */
+    this.un;
 
     const options = opt_options || {};
 
@@ -99,7 +116,6 @@ class Collection extends BaseObject {
     }
 
     this.updateLength_();
-
   }
 
   /**
@@ -185,7 +201,8 @@ class Collection extends BaseObject {
     this.array_.splice(index, 0, elem);
     this.updateLength_();
     this.dispatchEvent(
-      new CollectionEvent(CollectionEventType.ADD, elem, index));
+      new CollectionEvent(CollectionEventType.ADD, elem, index)
+    );
   }
 
   /**
@@ -240,7 +257,9 @@ class Collection extends BaseObject {
     const prev = this.array_[index];
     this.array_.splice(index, 1);
     this.updateLength_();
-    this.dispatchEvent(new CollectionEvent(CollectionEventType.REMOVE, prev, index));
+    this.dispatchEvent(
+      new CollectionEvent(CollectionEventType.REMOVE, prev, index)
+    );
     return prev;
   }
 
@@ -259,9 +278,11 @@ class Collection extends BaseObject {
       const prev = this.array_[index];
       this.array_[index] = elem;
       this.dispatchEvent(
-        new CollectionEvent(CollectionEventType.REMOVE, prev, index));
+        new CollectionEvent(CollectionEventType.REMOVE, prev, index)
+      );
       this.dispatchEvent(
-        new CollectionEvent(CollectionEventType.ADD, elem, index));
+        new CollectionEvent(CollectionEventType.ADD, elem, index)
+      );
     } else {
       for (let j = n; j < index; ++j) {
         this.insertAt(j, undefined);
@@ -280,7 +301,7 @@ class Collection extends BaseObject {
   /**
    * @private
    * @param {T} elem Element.
-   * @param {number=} opt_except Optional index to ignore.
+   * @param {number} [opt_except] Optional index to ignore.
    */
   assertUnique_(elem, opt_except) {
     for (let i = 0, ii = this.array_.length; i < ii; ++i) {
@@ -290,6 +311,5 @@ class Collection extends BaseObject {
     }
   }
 }
-
 
 export default Collection;

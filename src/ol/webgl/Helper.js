@@ -1,28 +1,34 @@
 /**
  * @module ol/webgl/Helper
  */
-import {getUid} from '../util.js';
-import Disposable from '../Disposable.js';
-import {clear} from '../obj.js';
 import ContextEventType from '../webgl/ContextEventType.js';
+import Disposable from '../Disposable.js';
+import WebGLPostProcessingPass from './PostProcessingPass.js';
+import {
+  FLOAT,
+  UNSIGNED_BYTE,
+  UNSIGNED_INT,
+  UNSIGNED_SHORT,
+  getContext,
+  getSupportedExtensions,
+} from '../webgl.js';
+import {assert} from '../asserts.js';
+import {clear} from '../obj.js';
 import {
   compose as composeTransform,
   create as createTransform,
   reset as resetTransform,
   rotate as rotateTransform,
-  scale as scaleTransform
+  scale as scaleTransform,
 } from '../transform.js';
 import {create, fromTransform} from '../vec/mat4.js';
-import WebGLPostProcessingPass from './PostProcessingPass.js';
-import {FLOAT, getContext, getSupportedExtensions, UNSIGNED_BYTE, UNSIGNED_INT, UNSIGNED_SHORT} from '../webgl.js';
+import {getUid} from '../util.js';
 import {includes} from '../array.js';
-import {assert} from '../asserts.js';
-
 
 /**
  * @typedef {Object} BufferCacheEntry
- * @property {import("./Buffer.js").default} buffer
- * @property {WebGLBuffer} webGlBuffer
+ * @property {import("./Buffer.js").default} buffer Buffer.
+ * @property {WebGLBuffer} webGlBuffer WebGlBuffer.
  */
 
 /**
@@ -30,8 +36,8 @@ import {assert} from '../asserts.js';
  * @enum {number}
  */
 export const ShaderType = {
-  FRAGMENT_SHADER: 0x8B30,
-  VERTEX_SHADER: 0x8B31
+  FRAGMENT_SHADER: 0x8b30,
+  VERTEX_SHADER: 0x8b31,
 };
 
 /**
@@ -45,7 +51,7 @@ export const DefaultUniform = {
   OFFSET_ROTATION_MATRIX: 'u_offsetRotateMatrix',
   TIME: 'u_time',
   ZOOM: 'u_zoom',
-  RESOLUTION: 'u_resolution'
+  RESOLUTION: 'u_resolution',
 };
 
 /**
@@ -57,7 +63,7 @@ export const AttributeType = {
   UNSIGNED_BYTE: UNSIGNED_BYTE,
   UNSIGNED_SHORT: UNSIGNED_SHORT,
   UNSIGNED_INT: UNSIGNED_INT,
-  FLOAT: FLOAT
+  FLOAT: FLOAT,
 };
 
 /**
@@ -86,12 +92,12 @@ export const AttributeType = {
  * the main canvas which will then be sampled up (useful for saving resource on blur steps).
  * @property {string} [vertexShader] Vertex shader source
  * @property {string} [fragmentShader] Fragment shader source
- * @property {Object.<string,UniformValue>} [uniforms] Uniform definitions for the post process step
+ * @property {Object<string,UniformValue>} [uniforms] Uniform definitions for the post process step
  */
 
 /**
  * @typedef {Object} Options
- * @property {Object.<string,UniformValue>} [uniforms] Uniform definitions; property names must match the uniform
+ * @property {Object<string,UniformValue>} [uniforms] Uniform definitions; property names must match the uniform
  * names in the provided or default shaders.
  * @property {Array<PostProcessesOptions>} [postProcesses] Post-processes definitions
  */
@@ -99,7 +105,7 @@ export const AttributeType = {
 /**
  * @typedef {Object} UniformInternalDescription
  * @property {string} name Name
- * @property {UniformValue=} value Value
+ * @property {UniformValue} [value] Value
  * @property {WebGLTexture} [texture] Texture
  * @private
  */
@@ -232,7 +238,7 @@ export const AttributeType = {
  */
 class WebGLHelper extends Disposable {
   /**
-   * @param {Options=} opt_options Options.
+   * @param {Options} [opt_options] Options.
    */
   constructor(opt_options) {
     super();
@@ -242,7 +248,8 @@ class WebGLHelper extends Disposable {
     this.boundHandleWebGLContextLost_ = this.handleWebGLContextLost.bind(this);
 
     /** @private */
-    this.boundHandleWebGLContextRestored_ = this.handleWebGLContextRestored.bind(this);
+    this.boundHandleWebGLContextRestored_ =
+      this.handleWebGLContextRestored.bind(this);
 
     /**
      * @private
@@ -251,7 +258,6 @@ class WebGLHelper extends Disposable {
     this.canvas_ = document.createElement('canvas');
     this.canvas_.style.position = 'absolute';
     this.canvas_.style.left = '0';
-
 
     /**
      * @private
@@ -275,8 +281,14 @@ class WebGLHelper extends Disposable {
     assert(includes(getSupportedExtensions(), 'OES_element_index_uint'), 63);
     gl.getExtension('OES_element_index_uint');
 
-    this.canvas_.addEventListener(ContextEventType.LOST, this.boundHandleWebGLContextLost_);
-    this.canvas_.addEventListener(ContextEventType.RESTORED, this.boundHandleWebGLContextRestored_);
+    this.canvas_.addEventListener(
+      ContextEventType.LOST,
+      this.boundHandleWebGLContextLost_
+    );
+    this.canvas_.addEventListener(
+      ContextEventType.RESTORED,
+      this.boundHandleWebGLContextRestored_
+    );
 
     /**
      * @private
@@ -298,13 +310,13 @@ class WebGLHelper extends Disposable {
 
     /**
      * @private
-     * @type {Object.<string, WebGLUniformLocation>}
+     * @type {Object<string, WebGLUniformLocation>}
      */
     this.uniformLocations_ = {};
 
     /**
      * @private
-     * @type {Object.<string, number>}
+     * @type {Object<string, number>}
      */
     this.attribLocations_ = {};
 
@@ -319,7 +331,7 @@ class WebGLHelper extends Disposable {
       for (const name in options.uniforms) {
         this.uniforms_.push({
           name: name,
-          value: options.uniforms[name]
+          value: options.uniforms[name],
         });
       }
     }
@@ -331,15 +343,17 @@ class WebGLHelper extends Disposable {
      * @type {Array<WebGLPostProcessingPass>}
      * @private
      */
-    this.postProcessPasses_ = options.postProcesses ? options.postProcesses.map(function(options) {
-      return new WebGLPostProcessingPass({
-        webGlContext: gl,
-        scaleRatio: options.scaleRatio,
-        vertexShader: options.vertexShader,
-        fragmentShader: options.fragmentShader,
-        uniforms: options.uniforms
-      });
-    }) : [new WebGLPostProcessingPass({webGlContext: gl})];
+    this.postProcessPasses_ = options.postProcesses
+      ? options.postProcesses.map(function (options) {
+          return new WebGLPostProcessingPass({
+            webGlContext: gl,
+            scaleRatio: options.scaleRatio,
+            vertexShader: options.vertexShader,
+            fragmentShader: options.fragmentShader,
+            uniforms: options.uniforms,
+          });
+        })
+      : [new WebGLPostProcessingPass({webGlContext: gl})];
 
     /**
      * @type {string|null}
@@ -369,7 +383,7 @@ class WebGLHelper extends Disposable {
       const webGlBuffer = gl.createBuffer();
       bufferCache = {
         buffer: buffer,
-        webGlBuffer: webGlBuffer
+        webGlBuffer: webGlBuffer,
       };
       this.bufferCache_[bufferKey] = bufferCache;
     }
@@ -395,18 +409,24 @@ class WebGLHelper extends Disposable {
     const gl = this.getGL();
     const bufferKey = getUid(buf);
     const bufferCacheEntry = this.bufferCache_[bufferKey];
-    if (!gl.isContextLost()) {
-      gl.deleteBuffer(bufferCacheEntry.buffer);
+    if (bufferCacheEntry && !gl.isContextLost()) {
+      gl.deleteBuffer(bufferCacheEntry.webGlBuffer);
     }
     delete this.bufferCache_[bufferKey];
   }
 
   /**
-   * @inheritDoc
+   * Clean up.
    */
   disposeInternal() {
-    this.canvas_.removeEventListener(ContextEventType.LOST, this.boundHandleWebGLContextLost_);
-    this.canvas_.removeEventListener(ContextEventType.RESTORED, this.boundHandleWebGLContextRestored_);
+    this.canvas_.removeEventListener(
+      ContextEventType.LOST,
+      this.boundHandleWebGLContextLost_
+    );
+    this.canvas_.removeEventListener(
+      ContextEventType.RESTORED,
+      this.boundHandleWebGLContextRestored_
+    );
   }
 
   /**
@@ -464,7 +484,10 @@ class WebGLHelper extends Disposable {
     gl.clearColor(0.0, 0.0, 0.0, 0.0);
     gl.clear(gl.COLOR_BUFFER_BIT);
     gl.enable(gl.BLEND);
-    gl.blendFunc(gl.ONE, opt_disableAlphaBlend ? gl.ZERO : gl.ONE_MINUS_SRC_ALPHA);
+    gl.blendFunc(
+      gl.ONE,
+      opt_disableAlphaBlend ? gl.ZERO : gl.ONE_MINUS_SRC_ALPHA
+    );
 
     gl.useProgram(this.currentProgram_);
     this.applyFrameState(frameState);
@@ -495,7 +518,10 @@ class WebGLHelper extends Disposable {
   finalizeDraw(frameState) {
     // apply post processes using the next one as target
     for (let i = 0; i < this.postProcessPasses_.length; i++) {
-      this.postProcessPasses_[i].apply(frameState, this.postProcessPasses_[i + 1] || null);
+      this.postProcessPasses_[i].apply(
+        frameState,
+        this.postProcessPasses_[i + 1] || null
+      );
     }
   }
 
@@ -533,12 +559,24 @@ class WebGLHelper extends Disposable {
       rotateTransform(offsetRotateMatrix, -rotation);
     }
 
-    this.setUniformMatrixValue(DefaultUniform.OFFSET_SCALE_MATRIX, fromTransform(this.tmpMat4_, offsetScaleMatrix));
-    this.setUniformMatrixValue(DefaultUniform.OFFSET_ROTATION_MATRIX, fromTransform(this.tmpMat4_, offsetRotateMatrix));
+    this.setUniformMatrixValue(
+      DefaultUniform.OFFSET_SCALE_MATRIX,
+      fromTransform(this.tmpMat4_, offsetScaleMatrix)
+    );
+    this.setUniformMatrixValue(
+      DefaultUniform.OFFSET_ROTATION_MATRIX,
+      fromTransform(this.tmpMat4_, offsetRotateMatrix)
+    );
 
-    this.setUniformFloatValue(DefaultUniform.TIME, (Date.now() - this.startTime_) * 0.001);
+    this.setUniformFloatValue(
+      DefaultUniform.TIME,
+      (Date.now() - this.startTime_) * 0.001
+    );
     this.setUniformFloatValue(DefaultUniform.ZOOM, frameState.viewState.zoom);
-    this.setUniformFloatValue(DefaultUniform.RESOLUTION, frameState.viewState.resolution);
+    this.setUniformFloatValue(
+      DefaultUniform.RESOLUTION,
+      frameState.viewState.resolution
+    );
   }
 
   /**
@@ -551,49 +589,86 @@ class WebGLHelper extends Disposable {
 
     let value;
     let textureSlot = 0;
-    this.uniforms_.forEach(function(uniform) {
-      value = typeof uniform.value === 'function' ? uniform.value(frameState) : uniform.value;
+    this.uniforms_.forEach(
+      function (uniform) {
+        value =
+          typeof uniform.value === 'function'
+            ? uniform.value(frameState)
+            : uniform.value;
 
-      // apply value based on type
-      if (value instanceof HTMLCanvasElement || value instanceof HTMLImageElement || value instanceof ImageData) {
-        // create a texture & put data
-        if (!uniform.texture) {
-          uniform.texture = gl.createTexture();
+        // apply value based on type
+        if (
+          value instanceof HTMLCanvasElement ||
+          value instanceof HTMLImageElement ||
+          value instanceof ImageData
+        ) {
+          // create a texture & put data
+          if (!uniform.texture) {
+            uniform.prevValue = undefined;
+            uniform.texture = gl.createTexture();
+          }
+          gl.activeTexture(gl[`TEXTURE${textureSlot}`]);
+          gl.bindTexture(gl.TEXTURE_2D, uniform.texture);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+          const imageReady =
+            !(value instanceof HTMLImageElement) ||
+            /** @type {HTMLImageElement} */ (value).complete;
+          if (imageReady && uniform.prevValue !== value) {
+            uniform.prevValue = value;
+            gl.texImage2D(
+              gl.TEXTURE_2D,
+              0,
+              gl.RGBA,
+              gl.RGBA,
+              gl.UNSIGNED_BYTE,
+              value
+            );
+          }
+
+          // fill texture slots by increasing index
+          gl.uniform1i(this.getUniformLocation(uniform.name), textureSlot++);
+        } else if (Array.isArray(value) && value.length === 6) {
+          this.setUniformMatrixValue(
+            uniform.name,
+            fromTransform(this.tmpMat4_, value)
+          );
+        } else if (Array.isArray(value) && value.length <= 4) {
+          switch (value.length) {
+            case 2:
+              gl.uniform2f(
+                this.getUniformLocation(uniform.name),
+                value[0],
+                value[1]
+              );
+              return;
+            case 3:
+              gl.uniform3f(
+                this.getUniformLocation(uniform.name),
+                value[0],
+                value[1],
+                value[2]
+              );
+              return;
+            case 4:
+              gl.uniform4f(
+                this.getUniformLocation(uniform.name),
+                value[0],
+                value[1],
+                value[2],
+                value[3]
+              );
+              return;
+            default:
+              return;
+          }
+        } else if (typeof value === 'number') {
+          gl.uniform1f(this.getUniformLocation(uniform.name), value);
         }
-        gl.activeTexture(gl[`TEXTURE${textureSlot}`]);
-        gl.bindTexture(gl.TEXTURE_2D, uniform.texture);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-
-        const imageReady = !(value instanceof HTMLImageElement) || /** @type {HTMLImageElement} */(value).complete;
-        if (imageReady) {
-          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, value);
-        }
-
-        // fill texture slots by increasing index
-        gl.uniform1i(this.getUniformLocation(uniform.name), textureSlot++);
-
-      } else if (Array.isArray(value) && value.length === 6) {
-        this.setUniformMatrixValue(uniform.name, fromTransform(this.tmpMat4_, value));
-      } else if (Array.isArray(value) && value.length <= 4) {
-        switch (value.length) {
-          case 2:
-            gl.uniform2f(this.getUniformLocation(uniform.name), value[0], value[1]);
-            return;
-          case 3:
-            gl.uniform3f(this.getUniformLocation(uniform.name), value[0], value[1], value[2]);
-            return;
-          case 4:
-            gl.uniform4f(this.getUniformLocation(uniform.name), value[0], value[1], value[2], value[3]);
-            return;
-          default:
-            return;
-        }
-      } else if (typeof value === 'number') {
-        gl.uniform1f(this.getUniformLocation(uniform.name), value);
-      }
-    }.bind(this));
+      }.bind(this)
+    );
   }
 
   /**
@@ -633,8 +708,7 @@ class WebGLHelper extends Disposable {
   }
 
   /**
-   * Create a program for a vertex and fragment shader. The shaders compilation may have failed:
-   * use `WebGLHelper.getShaderCompileErrors()`to have details if any.
+   * Create a program for a vertex and fragment shader.  Throws if shader compilation fails.
    * @param {string} fragmentShaderSource Fragment shader source.
    * @param {string} vertexShaderSource Vertex shader source.
    * @return {WebGLProgram} Program
@@ -643,33 +717,45 @@ class WebGLHelper extends Disposable {
   getProgram(fragmentShaderSource, vertexShaderSource) {
     const gl = this.getGL();
 
-    const fragmentShader = this.compileShader(fragmentShaderSource, gl.FRAGMENT_SHADER);
-    const vertexShader = this.compileShader(vertexShaderSource, gl.VERTEX_SHADER);
-    this.shaderCompileErrors_ = null;
+    const fragmentShader = this.compileShader(
+      fragmentShaderSource,
+      gl.FRAGMENT_SHADER
+    );
 
-    if (gl.getShaderInfoLog(fragmentShader)) {
-      this.shaderCompileErrors_ =
-        `Fragment shader compilation failed:\n${gl.getShaderInfoLog(fragmentShader)}`;
-    }
-    if (gl.getShaderInfoLog(vertexShader)) {
-      this.shaderCompileErrors_ = (this.shaderCompileErrors_ || '') +
-        `Vertex shader compilation failed:\n${gl.getShaderInfoLog(vertexShader)}`;
-    }
+    const vertexShader = this.compileShader(
+      vertexShaderSource,
+      gl.VERTEX_SHADER
+    );
 
     const program = gl.createProgram();
     gl.attachShader(program, fragmentShader);
     gl.attachShader(program, vertexShader);
     gl.linkProgram(program);
-    return program;
-  }
 
-  /**
-   * Will return the last shader compilation errors. If no error happened, will return null;
-   * @return {string|null} Errors description, or null if last compilation was successful
-   * @api
-   */
-  getShaderCompileErrors() {
-    return this.shaderCompileErrors_;
+    if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
+      const message = `Fragment shader compliation failed: ${gl.getShaderInfoLog(
+        fragmentShader
+      )}`;
+      throw new Error(message);
+    }
+    gl.deleteShader(fragmentShader);
+
+    if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
+      const message = `Vertex shader compilation failed: ${gl.getShaderInfoLog(
+        vertexShader
+      )}`;
+      throw new Error(message);
+    }
+    gl.deleteShader(vertexShader);
+
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+      const message = `GL program linking failed: ${gl.getShaderInfoLog(
+        vertexShader
+      )}`;
+      throw new Error(message);
+    }
+
+    return program;
   }
 
   /**
@@ -680,7 +766,10 @@ class WebGLHelper extends Disposable {
    */
   getUniformLocation(name) {
     if (this.uniformLocations_[name] === undefined) {
-      this.uniformLocations_[name] = this.getGL().getUniformLocation(this.currentProgram_, name);
+      this.uniformLocations_[name] = this.getGL().getUniformLocation(
+        this.currentProgram_,
+        name
+      );
     }
     return this.uniformLocations_[name];
   }
@@ -693,7 +782,10 @@ class WebGLHelper extends Disposable {
    */
   getAttributeLocation(name) {
     if (this.attribLocations_[name] === undefined) {
-      this.attribLocations_[name] = this.getGL().getAttribLocation(this.currentProgram_, name);
+      this.attribLocations_[name] = this.getGL().getAttribLocation(
+        this.currentProgram_,
+        name
+      );
     }
     return this.attribLocations_[name];
   }
@@ -713,11 +805,15 @@ class WebGLHelper extends Disposable {
     const center = frameState.viewState.center;
 
     resetTransform(transform);
-    composeTransform(transform,
-      0, 0,
-      2 / (resolution * size[0]), 2 / (resolution * size[1]),
+    composeTransform(
+      transform,
+      0,
+      0,
+      2 / (resolution * size[0]),
+      2 / (resolution * size[1]),
       -rotation,
-      -center[0], -center[1]
+      -center[0],
+      -center[1]
     );
     return transform;
   }
@@ -739,7 +835,11 @@ class WebGLHelper extends Disposable {
    * @api
    */
   setUniformMatrixValue(uniform, value) {
-    this.getGL().uniformMatrix4fv(this.getUniformLocation(uniform), false, value);
+    this.getGL().uniformMatrix4fv(
+      this.getUniformLocation(uniform),
+      false,
+      value
+    );
   }
 
   /**
@@ -759,8 +859,14 @@ class WebGLHelper extends Disposable {
       return;
     }
     this.getGL().enableVertexAttribArray(location);
-    this.getGL().vertexAttribPointer(location, size, type,
-      false, stride, offset);
+    this.getGL().vertexAttribPointer(
+      location,
+      size,
+      type,
+      false,
+      stride,
+      offset
+    );
   }
 
   /**
@@ -775,7 +881,13 @@ class WebGLHelper extends Disposable {
     let offset = 0;
     for (let i = 0; i < attributes.length; i++) {
       const attr = attributes[i];
-      this.enableAttributeArray_(attr.name, attr.size, attr.type || FLOAT, stride, offset);
+      this.enableAttributeArray_(
+        attr.name,
+        attr.size,
+        attr.type || FLOAT,
+        stride,
+        offset
+      );
       offset += attr.size * getByteSizeFromType(attr.type);
     }
   }
@@ -793,8 +905,7 @@ class WebGLHelper extends Disposable {
    * WebGL context was restored
    * @private
    */
-  handleWebGLContextRestored() {
-  }
+  handleWebGLContextRestored() {}
 
   /**
    * Will create or reuse a given webgl texture and apply the given size. If no image data
@@ -819,9 +930,26 @@ class WebGLHelper extends Disposable {
     const type = gl.UNSIGNED_BYTE;
     gl.bindTexture(gl.TEXTURE_2D, texture);
     if (opt_data) {
-      gl.texImage2D(gl.TEXTURE_2D, level, internalFormat, format, type, opt_data);
+      gl.texImage2D(
+        gl.TEXTURE_2D,
+        level,
+        internalFormat,
+        format,
+        type,
+        opt_data
+      );
     } else {
-      gl.texImage2D(gl.TEXTURE_2D, level, internalFormat, size[0], size[1], border, format, type, null);
+      gl.texImage2D(
+        gl.TEXTURE_2D,
+        level,
+        internalFormat,
+        size[0],
+        size[1],
+        border,
+        format,
+        type,
+        null
+      );
     }
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -834,7 +962,7 @@ class WebGLHelper extends Disposable {
 /**
  * Compute a stride in bytes based on a list of attributes
  * @param {Array<AttributeDescription>} attributes Ordered list of attributes
- * @returns {number} Stride, ie amount of values for each vertex in the vertex buffer
+ * @return {number} Stride, ie amount of values for each vertex in the vertex buffer
  * @api
  */
 export function computeAttributesStride(attributes) {
@@ -849,15 +977,19 @@ export function computeAttributesStride(attributes) {
 /**
  * Computes the size in byte of an attribute type.
  * @param {AttributeType} type Attribute type
- * @returns {number} The size in bytes
+ * @return {number} The size in bytes
  */
 function getByteSizeFromType(type) {
   switch (type) {
-    case AttributeType.UNSIGNED_BYTE: return Uint8Array.BYTES_PER_ELEMENT;
-    case AttributeType.UNSIGNED_SHORT: return Uint16Array.BYTES_PER_ELEMENT;
-    case AttributeType.UNSIGNED_INT: return Uint32Array.BYTES_PER_ELEMENT;
+    case AttributeType.UNSIGNED_BYTE:
+      return Uint8Array.BYTES_PER_ELEMENT;
+    case AttributeType.UNSIGNED_SHORT:
+      return Uint16Array.BYTES_PER_ELEMENT;
+    case AttributeType.UNSIGNED_INT:
+      return Uint32Array.BYTES_PER_ELEMENT;
     case AttributeType.FLOAT:
-    default: return Float32Array.BYTES_PER_ELEMENT;
+    default:
+      return Float32Array.BYTES_PER_ELEMENT;
   }
 }
 

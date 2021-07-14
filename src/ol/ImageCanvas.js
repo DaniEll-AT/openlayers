@@ -4,7 +4,6 @@
 import ImageBase from './ImageBase.js';
 import ImageState from './ImageState.js';
 
-
 /**
  * A function that is called to trigger asynchronous canvas drawing.  It is
  * called with a "done" callback that should be called when drawing is done.
@@ -14,20 +13,18 @@ import ImageState from './ImageState.js';
  * @typedef {function(function(Error=): void): void} Loader
  */
 
-
 class ImageCanvas extends ImageBase {
-
   /**
    * @param {import("./extent.js").Extent} extent Extent.
    * @param {number} resolution Resolution.
    * @param {number} pixelRatio Pixel ratio.
    * @param {HTMLCanvasElement} canvas Canvas.
-   * @param {Loader=} opt_loader Optional loader function to
+   * @param {Loader} [opt_loader] Optional loader function to
    *     support asynchronous canvas drawing.
    */
   constructor(extent, resolution, pixelRatio, canvas, opt_loader) {
-
-    const state = opt_loader !== undefined ? ImageState.IDLE : ImageState.LOADED;
+    const state =
+      opt_loader !== undefined ? ImageState.IDLE : ImageState.LOADED;
 
     super(extent, resolution, pixelRatio, state);
 
@@ -49,7 +46,6 @@ class ImageCanvas extends ImageBase {
      * @type {?Error}
      */
     this.error_ = null;
-
   }
 
   /**
@@ -62,7 +58,7 @@ class ImageCanvas extends ImageBase {
 
   /**
    * Handle async drawing complete.
-   * @param {Error=} err Any error during drawing.
+   * @param {Error} [err] Any error during drawing.
    * @private
    */
   handleLoad_(err) {
@@ -76,7 +72,7 @@ class ImageCanvas extends ImageBase {
   }
 
   /**
-   * @inheritDoc
+   * Load not yet loaded URI.
    */
   load() {
     if (this.state == ImageState.IDLE) {
@@ -93,6 +89,5 @@ class ImageCanvas extends ImageBase {
     return this.canvas_;
   }
 }
-
 
 export default ImageCanvas;
